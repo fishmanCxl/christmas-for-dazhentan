@@ -294,7 +294,7 @@ export function createScene(canvas, onComplete, titleElement) {
   scene.add(warm);
 
   const texture = glowTexture();
-  const branchTexture = new THREE.TextureLoader().load('/assets/fir-branch.webp', () => canvas.classList.add('is-ready'));
+  const branchTexture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/fir-branch.webp`, () => canvas.classList.add('is-ready'));
   branchTexture.colorSpace = THREE.SRGBColorSpace;
   branchTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const tree = createTree(texture, branchTexture);
