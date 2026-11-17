@@ -29,6 +29,11 @@ let holdStarted = 0;
 let holdFrame = 0;
 let holdPointer;
 
+function finishLoading() {
+  document.querySelector('#scene-loading').hidden = true;
+  document.querySelector('#enter-button').disabled = false;
+}
+
 function updateSoundButton() {
   soundButton.setAttribute('aria-pressed', String(soundEnabled));
   soundButton.setAttribute('aria-label', soundEnabled ? '关闭音乐' : '开启音乐');
@@ -49,6 +54,7 @@ function activateFallback() {
   root.classList.add('is-fallback');
   document.querySelector('#fallback-notice').hidden = false;
   canvas.hidden = true;
+  finishLoading();
   scheduleFallback();
 }
 
@@ -199,7 +205,10 @@ window.addEventListener('pagehide', () => { endHold(); scene?.pause(); soundtrac
 window.addEventListener('pageshow', visibilityChanged);
 canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); activateFallback(); });
 
-try { scene = createScene(canvas, () => act('complete'), document.querySelector('#finale-title')); }
+try {
+  scene = createScene(canvas, () => act('complete'), document.querySelector('#finale-title'));
+  scene.ready.then(finishLoading, activateFallback);
+}
 catch { activateFallback(); }
 
 if (import.meta.hot) {

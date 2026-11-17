@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createSnow, createBursts } from './particles.js';
 import { createParticleText } from './particle-text.js';
+import branchTextureUrl from './assets/fir-branch.webp?inline';
 
 const gold = new THREE.MeshStandardMaterial({ color: '#e9c27e', metalness: 0.78, roughness: 0.3 });
 const burgundy = new THREE.MeshStandardMaterial({ color: '#540c20', metalness: 0.05, roughness: 0.72 });
@@ -265,6 +266,11 @@ const poses = {
 };
 
 export function createScene(canvas, onComplete, titleElement) {
+  let resolveReady;
+  let rejectReady;
+  const ready = new Promise((resolve, reject) => { resolveReady = resolve; rejectReady = reject; });
+  let textureLoaded = false;
+  let firstFrameReady = false;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
@@ -294,7 +300,11 @@ export function createScene(canvas, onComplete, titleElement) {
   scene.add(warm);
 
   const texture = glowTexture();
-  const branchTexture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}assets/fir-branch.webp`, () => canvas.classList.add('is-ready'));
+  const branchTexture = new THREE.TextureLoader().load(branchTextureUrl,
+    () => { textureLoaded = true; },
+    undefined,
+    () => rejectReady(new Error('Tree texture decoding failed')),
+  );
   branchTexture.colorSpace = THREE.SRGBColorSpace;
   branchTexture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   const tree = createTree(texture, branchTexture);
@@ -457,6 +467,11 @@ export function createScene(canvas, onComplete, titleElement) {
     stageTime += delta;
     updateObjects(delta);
     renderer.render(scene, camera);
+    if (textureLoaded && !firstFrameReady) {
+      firstFrameReady = true;
+      canvas.classList.add('is-ready');
+      resolveReady();
+    }
     frames++;
     measuredTime += rawDelta;
     if (frames === 120) {
@@ -506,6 +521,7 @@ export function createScene(canvas, onComplete, titleElement) {
   }
 
   return {
+    ready,
     setStage,
     setHold(value) { hold = value; },
     drag(value) { turn += value * 0.007; },
