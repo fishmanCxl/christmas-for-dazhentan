@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#061c23" />
+    <style>html, body { margin: 0; background: #061c23; color: #f5ebd8; }</style>
+    <meta name="description" content="一份藏在雪夜里的圣诞惊喜。亲手点亮圣诞树，拆开礼物，让烟花照亮今晚。" />
+    <title>A little Christmas · 给大侦探的圣诞惊喜</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='20' fill='%23061c23'/%3E%3Cpath d='M40 10L22 34H31L17 52H33V65H47V52H63L49 34H58Z' fill='%23eccc91'/%3E%3C/svg%3E" />
+    <link rel="preload" as="image" href="./assets/winter-night.webp" />
+    <link rel="preload" as="font" href="./assets/instrument-serif-italic.woff2" type="font/woff2" crossorigin />
+    <script type="module" crossorigin src="./assets/index-CyEWZU0O.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DJIgB5Ln.css">
+  </head>
+  <body>
+    <main id="experience" data-stage="intro" aria-label="圣诞互动惊喜">
+      <div class="winter-backdrop" aria-hidden="true"></div>
+      <canvas id="world" aria-hidden="true"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <div class="fallback-art" aria-hidden="true"><div class="fallback-tree">🎄</div><div class="fallback-gift">🎁</div><div class="fallback-globe">❄</div></div>
+
+      <header class="site-header">
+        <a class="wordmark" href="./" aria-label="圣诞惊喜首页"><span class="tree-mark" aria-hidden="true"></span><span>CHRISTMAS</span></a>
+        <button id="sound-toggle" class="sound-toggle" type="button" aria-label="开启音乐" aria-pressed="false"><span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sound-label">声音关闭</span></button>
+      </header>
+
+      <section class="scene-content intro-content" data-for="intro" aria-labelledby="intro-title">
+        <div class="heading-block">
+          <h1 id="intro-title">A little Christmas,<br /><em>just for you.</em></h1>
+        </div>
+        <div class="scene-actions intro-actions">
+          <button id="enter-button" class="primary-button" type="button"><span>开启圣诞惊喜</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+          <p class="footnote">轻触开启 · 戴上耳机，让惊喜更近一点</p>
+        </div>
+      </section>
+
+      <section class="scene-content tree-content" data-for="tree lighting" hidden aria-labelledby="tree-title">
+        <div class="heading-block"><h2 id="tree-title">Make a little magic.</h2><p class="chinese-subtitle" id="tree-caption">今晚的第一束光，由你点亮</p></div>
+        <div class="scene-actions tree-actions">
+          <button id="hold-button" class="hold-button" type="button" aria-label="长按星星 1.2 秒，点亮圣诞树"><span class="hold-ring"></span><span class="hold-center"><span class="star-shape" aria-hidden="true"></span></span></button>
+          <p class="action-hint" id="hold-hint">长按星星，点亮圣诞树</p>
+          <p class="footnote" id="drag-hint">左右轻滑，看看雪夜的另一面</p>
+        </div>
+      </section>
+
+      <section class="scene-content gift-content" data-for="gift opening" hidden aria-labelledby="gift-title">
+        <div class="heading-block"><h2 id="gift-title">A surprise<br /><em>awaits.</em></h2><p class="chinese-subtitle">有一份惊喜，等你亲手拆开</p></div>
+        <button id="gift-button" class="object-hit gift-hit" type="button" aria-label="划开缎带，拆开礼物"></button>
+        <div class="scene-actions gift-actions"><div class="swipe-guide" aria-hidden="true"><span></span><span class="swipe-dot"></span><span></span></div><p class="action-hint" id="gift-hint">划开缎带，拆开惊喜</p><p class="footnote">也可以轻触礼物</p></div>
+      </section>
+
+      <section class="scene-content globe-content" data-for="globe" hidden aria-labelledby="globe-title">
+        <div class="heading-block"><h2 id="globe-title">A world of<br /><em>wonder.</em></h2><p class="chinese-subtitle">把整个圣诞，装进你的掌心</p></div>
+        <button id="globe-button" class="object-hit globe-hit" type="button" aria-label="轻触水晶球，绽放圣诞烟花"></button>
+        <div class="scene-actions"><button id="celebrate-button" class="primary-button" type="button"><span>让愿望绽放</span><span class="button-arrow" aria-hidden="true">✧</span></button><p class="footnote">轻触水晶球，也能点亮天空</p></div>
+      </section>
+
+      <section class="scene-content finale-content" data-for="finale" hidden aria-labelledby="finale-title">
+        <div class="heading-block"><h2 id="finale-title">Merry<br /><em>Christmas.</em></h2><p class="chinese-subtitle">大侦探，愿你今天的开心再多一点。</p></div>
+        <div class="scene-actions"><button id="replay-button" class="primary-button" type="button"><span>再看一次</span><span class="button-arrow replay-arrow" aria-hidden="true">↻</span></button><p class="footnote">愿这一点点魔法，陪你过个好圣诞</p></div>
+      </section>
+
+      <nav class="journey" aria-label="体验进度" hidden><span class="journey-dot is-active" aria-label="进入雪夜"></span><span class="journey-line"></span><span class="journey-dot" aria-label="点亮圣诞树"></span><span class="journey-line"></span><span class="journey-dot" aria-label="拆开礼物"></span><span class="journey-line"></span><span class="journey-dot" aria-label="圣诞祝福"></span></nav>
+      <p id="announcer" class="sr-only" aria-live="polite"></p>
+      <p id="fallback-notice" class="fallback-notice" hidden>已切换轻量模式，圣诞惊喜继续</p>
+      <div class="light-flash" aria-hidden="true"></div>
+    </main>
+    <noscript><p class="noscript">请开启 JavaScript，打开这份圣诞惊喜。</p></noscript>
+  </body>
+</html>
