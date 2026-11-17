@@ -113,8 +113,9 @@ h1 em, h2 em { font-style: inherit; }
 .swipe-guide > span:last-child { transform: rotate(180deg); }
 .swipe-dot { display: block; width: 8px; height: 8px; border: 1px solid var(--gold); border-radius: 50%; animation: swipe 2.5s ease-in-out infinite; box-shadow: 0 0 10px #eac78a88; }
 .gift-actions .footnote { margin-top: 9px; }
-.finale-content .heading-block { top: clamp(112px, 15dvh, 160px); }
+.finale-content .heading-block { top: clamp(112px, 15dvh, 160px); animation: none; }
 .finale-content h2 { font-size: clamp(72px, 18.5vw, 101px); }
+#experience:not(.is-fallback) #world.is-ready ~ .finale-content #finale-title.is-particle-text { color: transparent; text-shadow: none; }
 .finale-content .chinese-subtitle { font-size: 13px; letter-spacing: 1.8px; margin-top: 24px; }
 .journey { display: flex; position: absolute; bottom: calc(var(--safe-bottom) + 5px); align-items: center; left: 50%; transform: translateX(-50%); pointer-events: none; }
 .journey-dot { width: 8px; height: 8px; border: 1px solid #bbbcad; border-radius: 50%; transition: background .6s, box-shadow .6s; }

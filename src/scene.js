@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createSnow, createBursts } from './particles.js';
+import { createParticleText } from './particle-text.js';
 
 const gold = new THREE.MeshStandardMaterial({ color: '#e9c27e', metalness: 0.78, roughness: 0.3 });
 const burgundy = new THREE.MeshStandardMaterial({ color: '#540c20', metalness: 0.05, roughness: 0.72 });
@@ -263,7 +264,7 @@ const poses = {
   finale: { treeScale: 0.44, treeX: -3.7, treeY: 0.1, treeZ: -3.5, giftScale: 0.4, giftX: 2.8, giftY: -0.5, giftZ: 0, globeScale: 1.5, globeY: 0.55, cameraZ: 9.5, targetY: 2.45 },
 };
 
-export function createScene(canvas, onComplete) {
+export function createScene(canvas, onComplete, titleElement) {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setClearColor(0x000000, 0);
@@ -317,6 +318,8 @@ export function createScene(canvas, onComplete) {
   scene.add(snow.points);
   const bursts = createBursts(reducedMotion ? 700 : 2600);
   scene.add(bursts.points);
+  const particleTitle = reducedMotion ? null : createParticleText(titleElement, canvas);
+  if (particleTitle) scene.add(particleTitle.points);
   const giftGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   giftGlow.scale.setScalar(3.5);
   giftGlow.position.set(0, 1.6, 0);
@@ -350,6 +353,7 @@ export function createScene(canvas, onComplete) {
     snow.uniforms.uDpr.value = quality;
     bursts.uniforms.uDpr.value = quality;
     tree.bulbMaterial.uniforms.uDpr.value = quality;
+    particleTitle?.resize(width, height, quality);
   }
 
   function setStage(next) {
@@ -367,7 +371,13 @@ export function createScene(canvas, onComplete) {
       openingBurst = false;
     }
     if (next === 'opening') openingBurst = false;
-    if (next === 'finale') { fireworksAt = 0.1; fireworkIndex = 0; }
+    if (next === 'finale') {
+      fireworksAt = 0.1;
+      fireworkIndex = 0;
+      void particleTitle?.show();
+    } else {
+      particleTitle?.hide();
+    }
   }
 
   function updateObjects(delta) {
@@ -403,6 +413,7 @@ export function createScene(canvas, onComplete) {
     globe.innerSnow.uniforms.uTime.value = elapsed * 0.55;
     snow.uniforms.uTime.value = reducedMotion ? 0 : elapsed;
     bursts.uniforms.uTime.value = elapsed;
+    particleTitle?.update(elapsed);
 
     if (stage === 'lighting' && stageTime > 2.1 && !openingBurst) {
       bursts.burst([0, 4.15, 0], '#ffe0a0', reducedMotion ? 70 : 360, 'star');
@@ -479,6 +490,7 @@ export function createScene(canvas, onComplete) {
   function dispose() {
     pause();
     observer.disconnect();
+    particleTitle?.dispose();
     const geometries = new Set();
     const materials = new Set();
     scene.traverse((object) => {
@@ -497,7 +509,10 @@ export function createScene(canvas, onComplete) {
     setStage,
     setHold(value) { hold = value; },
     drag(value) { turn += value * 0.007; },
-    setPointer(x, y) { snow.uniforms.uPointer.value.set(x * 3.5, 2.5 + y * 3.5); },
+    setPointer(x, y) {
+      snow.uniforms.uPointer.value.set(x * 3.5, 2.5 + y * 3.5);
+      particleTitle?.setPointer(x, y);
+    },
     pause,
     resume,
     dispose,

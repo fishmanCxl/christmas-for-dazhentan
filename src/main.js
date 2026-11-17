@@ -10,13 +10,13 @@ const journey = document.querySelector('.journey');
 const soundtrack = createSoundtrack();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const stageCopy = {
-  intro: '一份圣诞惊喜，等你开启。',
+  intro: '大侦探，一份圣诞惊喜，等你开启。',
   tree: '长按星星 1.2 秒，点亮圣诞树。',
   lighting: '圣诞树正在点亮。',
   gift: '圣诞树亮了。划开缎带，或者轻触礼物。',
   opening: '礼物正在打开。',
   globe: '惊喜是一颗装着圣诞树的水晶球。轻触水晶球，绽放烟花。',
-  finale: '圣诞快乐。愿你今天的开心，多一点，再多一点。',
+  finale: '大侦探，圣诞快乐。愿你今天的开心再多一点。',
 };
 
 let stage = 'intro';
@@ -199,7 +199,7 @@ window.addEventListener('pagehide', () => { endHold(); scene?.pause(); soundtrac
 window.addEventListener('pageshow', visibilityChanged);
 canvas.addEventListener('webglcontextlost', (event) => { event.preventDefault(); activateFallback(); });
 
-try { scene = createScene(canvas, () => act('complete')); }
+try { scene = createScene(canvas, () => act('complete'), document.querySelector('#finale-title')); }
 catch { activateFallback(); }
 
 if (import.meta.hot) {
