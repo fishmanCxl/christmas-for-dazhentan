@@ -9,6 +9,7 @@ const soundButton = document.querySelector('#sound-toggle');
 const journey = document.querySelector('.journey');
 const soundtrack = createSoundtrack();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reducedMotion) document.querySelector('#finale-hint').textContent = '愿这一点点魔法，陪你过个好圣诞';
 const stageCopy = {
   intro: '大侦探，一份圣诞惊喜，等你开启。',
   tree: '长按星星 1.2 秒，点亮圣诞树。',
@@ -54,6 +55,7 @@ function activateFallback() {
   root.classList.add('is-fallback');
   document.querySelector('#fallback-notice').hidden = false;
   canvas.hidden = true;
+  document.querySelector('#finale-hint').textContent = '愿这一点点魔法，陪你过个好圣诞';
   finishLoading();
   scheduleFallback();
 }
@@ -184,7 +186,13 @@ root.addEventListener('pointermove', (event) => {
   scene?.setPointer((event.clientX / bounds.width - 0.5) * 2, (0.5 - event.clientY / bounds.height) * 2);
   if (dragX !== undefined) { scene?.drag(event.clientX - dragX); dragX = event.clientX; }
 });
-root.addEventListener('pointerup', () => { dragX = undefined; });
+root.addEventListener('pointerup', (event) => {
+  dragX = undefined;
+  if (stage === 'finale' && !event.target.closest('button, a')) {
+    const bounds = root.getBoundingClientRect();
+    scene?.launchFirework((event.clientX - bounds.left) / bounds.width * 2 - 1, 1 - (event.clientY - bounds.top) / bounds.height * 2);
+  }
+});
 root.addEventListener('pointercancel', () => { dragX = undefined; });
 root.addEventListener('pointerleave', () => scene?.setPointer(100, 100));
 

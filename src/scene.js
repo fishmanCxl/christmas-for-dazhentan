@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { createSnow, createBursts } from './particles.js';
+import { createSnow } from './particles.js';
+import { createBursts } from './fireworks.js';
 import { createParticleText } from './particle-text.js';
 import branchTextureUrl from './assets/fir-branch.webp?inline';
+import snowflakeUrl from './assets/snowflake.svg?inline';
 
 const gold = new THREE.MeshStandardMaterial({ color: '#e9c27e', metalness: 0.78, roughness: 0.3 });
 const burgundy = new THREE.MeshStandardMaterial({ color: '#540c20', metalness: 0.05, roughness: 0.72 });
@@ -101,34 +103,54 @@ function createTree(texture, branchTexture) {
   root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiral), 300, 0.012, 4, false), wireMaterial));
   const bulbGeometry = new THREE.BufferGeometry();
   bulbGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bulbs, 3));
+  bulbGeometry.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(bulbs.length / 3).fill(1), 1));
   const bulbMaterial = new THREE.ShaderMaterial({
     uniforms: { uLight: { value: 0.55 }, uTime: { value: 0 }, uReveal: { value: 5 }, uDpr: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
+      attribute float aSize;
       uniform float uLight;
       uniform float uTime;
       uniform float uReveal;
       uniform float uDpr;
       varying float vLight;
+      varying vec3 vTint;
       void main() {
         vec4 view = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * view;
         vLight = (0.7 + 0.3 * sin(uTime * 1.4 + position.y * 7.0)) * uLight * smoothstep(position.y - 0.15, position.y + 0.15, uReveal);
-        gl_PointSize = clamp((22.0 + vLight * 120.0) * uDpr / max(0.5, -view.z), 1.0, 34.0 * uDpr);
+        float wave = pow(max(0.0, sin(uTime * 1.8 - position.y * 3.2)), 8.0);
+        vTint = mix(vec3(1.0, 0.77, 0.39), vec3(0.58, 0.86, 1.0), wave * 0.9);
+        gl_PointSize = clamp((24.0 + vLight * (150.0 + wave * 45.0)) * aSize * uDpr / max(0.5, -view.z), 1.0, 38.0 * uDpr);
+        vLight *= mix(0.6, 1.0, step(0.8, aSize));
       }
     `,
     fragmentShader: `
       varying float vLight;
+      varying vec3 vTint;
       void main() {
         float radius = length(gl_PointCoord - 0.5);
         float halo = exp(-radius * radius * 22.0);
         float core = exp(-radius * radius * 150.0);
-        gl_FragColor = vec4(vec3(1.0, 0.77, 0.39) + core * 1.2, (halo * 0.65 + core) * vLight);
+        gl_FragColor = vec4(vTint + core * 1.2, (halo * 0.65 + core) * vLight);
       }
     `,
   });
   const lights = new THREE.Points(bulbGeometry, bulbMaterial);
   root.add(lights);
+  const glitterPositions = new Float32Array(900 * 3);
+  const glitterSizes = new Float32Array(900);
+  for (let index = 0; index < 900; index++) {
+    const y = 0.3 + Math.random() * 4;
+    const angle = index * 2.399;
+    const radius = 1.84 * (1 - y / 4.7) ** 0.8 * (0.88 + Math.random() * 0.15);
+    glitterPositions.set([Math.cos(angle) * radius, y, Math.sin(angle) * radius], index * 3);
+    glitterSizes[index] = 0.14 + Math.random() * 0.2;
+  }
+  const glitterGeometry = new THREE.BufferGeometry();
+  glitterGeometry.setAttribute('position', new THREE.BufferAttribute(glitterPositions, 3));
+  glitterGeometry.setAttribute('aSize', new THREE.BufferAttribute(glitterSizes, 1));
+  root.add(new THREE.Points(glitterGeometry, bulbMaterial));
   const star = createStar(0.29);
   star.position.y = 4.65;
   root.add(star);
@@ -137,7 +159,16 @@ function createTree(texture, branchTexture) {
   halo.position.set(0, 4.65, 0.05);
   halo.scale.setScalar(1.2);
   root.add(halo);
-  return { root, bulbMaterial, wireMaterial, haloMaterial, star };
+  const flareMaterial = new THREE.SpriteMaterial({ map: texture, color: '#c7ecff', transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false });
+  const horizontalFlare = new THREE.Sprite(flareMaterial);
+  horizontalFlare.position.set(0, 4.65, 0.08);
+  horizontalFlare.scale.set(5.6, 0.10, 1);
+  root.add(horizontalFlare);
+  const verticalFlare = new THREE.Sprite(flareMaterial);
+  verticalFlare.position.copy(horizontalFlare.position);
+  verticalFlare.scale.set(0.075, 2.2, 1);
+  root.add(verticalFlare);
+  return { root, bulbMaterial, wireMaterial, haloMaterial, flareMaterial, star };
 }
 
 function createGift() {
@@ -324,9 +355,11 @@ export function createScene(canvas, onComplete, titleElement) {
   }
   tree.root.add(extraGifts);
 
-  const snow = createSnow(reducedMotion ? 150 : 1050);
+  const snowflake = new THREE.TextureLoader().load(snowflakeUrl);
+  snowflake.colorSpace = THREE.SRGBColorSpace;
+  const snow = createSnow(reducedMotion ? 150 : 850, 14, 11, 9, snowflake);
   scene.add(snow.points);
-  const bursts = createBursts(reducedMotion ? 700 : 2600);
+  const bursts = createBursts(reducedMotion ? 700 : 7200);
   scene.add(bursts.points);
   const particleTitle = reducedMotion ? null : createParticleText(titleElement, canvas);
   if (particleTitle) scene.add(particleTitle.points);
@@ -341,6 +374,8 @@ export function createScene(canvas, onComplete, titleElement) {
   let hold = 0;
   let turn = 0;
   let lastTime = 0;
+  let lastTick = 0;
+  let frameBudget = 0;
   let frameId = 0;
   let completed = false;
   let fireworksAt = 0;
@@ -350,8 +385,27 @@ export function createScene(canvas, onComplete, titleElement) {
   let slowFrames = 0;
   let frames = 0;
   let measuredTime = 0;
+  let lowQuality = false;
+  let lastTap = -1;
   const scaleTarget = new THREE.Vector3();
   const positionTarget = new THREE.Vector3();
+  const fireworkDirection = new THREE.Vector3();
+  const fireworkTarget = new THREE.Vector3();
+  const fireworkColors = ['#ffe0a1', '#b8e8ff', '#ffd39f', '#d1f2ec'];
+  const fireworkPatterns = ['chrysanthemum', 'star', 'willow'];
+  const fireworkPositions = [[0, 0.82], [-0.54, 0.48], [0.56, 0.60], [-0.24, 0.75], [0.42, 0.32], [-0.58, 0.68], [0.16, 0.51], [0.5, 0.81]];
+
+  function emitFirework(x, y) {
+    const visibleWidth = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z + 1.5) * camera.aspect;
+    const radius = Math.min(2.1, visibleWidth * 0.34);
+    const marginX = radius * 2 / visibleWidth + 24 / canvas.clientWidth;
+    const marginY = radius * 2 * camera.aspect / visibleWidth + 24 / canvas.clientHeight;
+    fireworkDirection.set(THREE.MathUtils.clamp(x, marginX - 1, 1 - marginX), THREE.MathUtils.clamp(y, marginY - 1, 1 - marginY), 0.5).unproject(camera).sub(camera.position).normalize();
+    fireworkTarget.copy(camera.position).addScaledVector(fireworkDirection, (-1.5 - camera.position.z) / fireworkDirection.z);
+    const emitted = bursts.launch(fireworkTarget.toArray(), fireworkColors[fireworkIndex % fireworkColors.length], radius, fireworkPatterns[fireworkIndex % fireworkPatterns.length]);
+    fireworkIndex++;
+    return emitted;
+  }
 
   function resize() {
     const width = canvas.clientWidth;
@@ -361,6 +415,7 @@ export function createScene(canvas, onComplete, titleElement) {
     renderer.setPixelRatio(quality);
     renderer.setSize(width, height, false);
     snow.uniforms.uDpr.value = quality;
+    globe.innerSnow.uniforms.uDpr.value = quality;
     bursts.uniforms.uDpr.value = quality;
     tree.bulbMaterial.uniforms.uDpr.value = quality;
     particleTitle?.resize(width, height, quality);
@@ -379,6 +434,7 @@ export function createScene(canvas, onComplete, titleElement) {
       globe.root.scale.setScalar(0);
       giftGlow.material.opacity = 0;
       openingBurst = false;
+      lastTap = -1;
     }
     if (next === 'opening') openingBurst = false;
     if (next === 'finale') {
@@ -417,10 +473,12 @@ export function createScene(canvas, onComplete, titleElement) {
     tree.bulbMaterial.uniforms.uReveal.value = reveal;
     tree.bulbMaterial.uniforms.uTime.value = elapsed;
     tree.wireMaterial.emissiveIntensity = light * 0.9;
-    tree.haloMaterial.opacity = stage === 'tree' ? 0.13 + hold * 0.5 : 0.8;
+    const starPulse = stage === 'lighting' && !reducedMotion ? Math.exp(-Math.pow((stageTime - 1.9) / 0.24, 2)) : 0;
+    tree.haloMaterial.opacity = stage === 'tree' ? 0.13 + hold * 0.5 : 0.75 + starPulse * 0.25;
+    tree.flareMaterial.opacity = reducedMotion ? 0.08 : 0.18 + hold * 0.22 + starPulse * 0.8;
     warm.intensity = stage === 'tree' ? 1.8 + hold * 8 : 10;
     tree.star.rotation.y = Math.sin(elapsed * 0.4) * 0.16;
-    globe.innerSnow.uniforms.uTime.value = elapsed * 0.55;
+    globe.innerSnow.uniforms.uTime.value = reducedMotion ? 0 : elapsed * 0.55;
     snow.uniforms.uTime.value = reducedMotion ? 0 : elapsed;
     bursts.uniforms.uTime.value = elapsed;
     particleTitle?.update(elapsed);
@@ -451,15 +509,18 @@ export function createScene(canvas, onComplete, titleElement) {
       }
     }
     if (stage === 'finale' && stageTime >= fireworksAt && !reducedMotion) {
-      const origins = [[-1.8, 4.8, -0.8], [1.75, 4.3, -1.5], [-1.3, 2.9, -1], [1.7, 6.1, -2], [0.1, 5.6, -1.5]];
-      const color = fireworkIndex % 3 === 1 ? '#c8e4df' : '#f8ce8c';
-      bursts.burst(origins[fireworkIndex % origins.length], color, 420, fireworkIndex % 3 === 0 ? 'star' : 'firework');
-      fireworkIndex++;
-      fireworksAt = stageTime + (fireworkIndex < 6 ? 0.68 : 2.5);
+      const position = fireworkPositions[fireworkIndex % fireworkPositions.length];
+      emitFirework(position[0], position[1]);
+      fireworksAt = stageTime + (fireworkIndex < 8 ? 0.62 : 1.45);
     }
   }
 
   function render(time) {
+    frameId = requestAnimationFrame(render);
+    frameBudget += lastTick ? time - lastTick : 1000 / 60;
+    lastTick = time;
+    if (frameBudget < 1000 / 60 - 0.5) return;
+    frameBudget = Math.max(0, frameBudget - 1000 / 60) % (1000 / 60);
     const rawDelta = lastTime ? (time - lastTime) / 1000 : 0.016;
     const delta = Math.min(rawDelta, 0.05);
     lastTime = time;
@@ -474,11 +535,13 @@ export function createScene(canvas, onComplete, titleElement) {
     }
     frames++;
     measuredTime += rawDelta;
-    if (frames === 120) {
+    if (frames === 60) {
       slowFrames = measuredTime / frames > 0.029 ? slowFrames + 1 : 0;
-      if (slowFrames >= 2 && quality > 1) {
-        quality = 1;
+      if (slowFrames >= 2 && !lowQuality) {
+        lowQuality = true;
+        quality = Math.min(quality, 1);
         snow.points.geometry.setDrawRange(0, reducedMotion ? 120 : 550);
+        bursts.setQuality(true);
         resize();
       }
       canvas.dataset.quality = String(quality);
@@ -486,10 +549,9 @@ export function createScene(canvas, onComplete, titleElement) {
       frames = 0;
       measuredTime = 0;
     }
-    frameId = requestAnimationFrame(render);
   }
 
-  function pause() { cancelAnimationFrame(frameId); frameId = 0; lastTime = 0; }
+  function pause() { cancelAnimationFrame(frameId); frameId = 0; lastTime = 0; lastTick = 0; frameBudget = 0; }
   function resume() { if (!frameId) frameId = requestAnimationFrame(render); }
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
@@ -516,6 +578,7 @@ export function createScene(canvas, onComplete, titleElement) {
     materials.forEach((material) => material.dispose());
     texture.dispose();
     branchTexture.dispose();
+    snowflake.dispose();
     environment.dispose();
     renderer.dispose();
   }
@@ -525,6 +588,11 @@ export function createScene(canvas, onComplete, titleElement) {
     setStage,
     setHold(value) { hold = value; },
     drag(value) { turn += value * 0.007; },
+    launchFirework(x, y) {
+      if (stage !== 'finale' || reducedMotion || elapsed - lastTap < 0.35) return false;
+      lastTap = elapsed;
+      return emitFirework(THREE.MathUtils.clamp(x, -0.7, 0.7), THREE.MathUtils.clamp(y, 0.25, 0.84));
+    },
     setPointer(x, y) {
       snow.uniforms.uPointer.value.set(x * 3.5, 2.5 + y * 3.5);
       particleTitle?.setPointer(x, y);
