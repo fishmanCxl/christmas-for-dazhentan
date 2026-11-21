@@ -9,7 +9,7 @@ const softPoint = `
   void main() {
     vec2 point = gl_PointCoord - 0.5;
     float radius = length(point);
-    float halo = exp(-radius * radius * 28.0);
+    float halo = exp(-radius * radius * 45.0);
     float core = exp(-radius * radius * 160.0);
     if (vFlake > 0.5) {
       float sine = sin(vRotation);
@@ -18,7 +18,7 @@ const softPoint = `
       vec4 flake = texture2D(uSnowflake, uv);
       gl_FragColor = vec4(flake.rgb * vColor, flake.a * vAlpha);
     } else {
-      gl_FragColor = vec4(vColor * (1.0 + core), (halo * 0.55 + core * 0.45) * vAlpha);
+      gl_FragColor = vec4(vColor * (1.0 + core), (halo * 0.25 + core * 0.75) * vAlpha);
     }
   }
 `;
@@ -77,8 +77,8 @@ export function createSnow(count, width = 14, height = 11, depth = 9, flakeTextu
         gl_Position = projectionMatrix * view;
         vFlake = aFlake * uHasFlakes;
         float distanceToCamera = max(0.5, -view.z);
-        float smallSize = clamp(aSize * mix(27.0, 36.0, uHasFlakes) * uDpr / distanceToCamera, 1.0, 18.0 * uDpr);
-        float largeSize = clamp((22.0 + aSize * 9.0) * 5.0 * uDpr / distanceToCamera, 16.0 * uDpr, 42.0 * uDpr);
+        float smallSize = clamp(aSize * mix(20.0, 27.0, uHasFlakes) * uDpr / distanceToCamera, 1.0, 13.5 * uDpr);
+        float largeSize = clamp((22.0 + aSize * 9.0) * 3.75 * uDpr / distanceToCamera, 12.0 * uDpr, 31.5 * uDpr);
         gl_PointSize = mix(smallSize, largeSize, vFlake);
         vColor = mix(vec3(0.82, 0.9, 0.9), vec3(0.94, 0.98, 1.0), vFlake);
         vAlpha = mix(0.28 + aSize * 0.16, 0.60 + aSeed * 0.17, vFlake);

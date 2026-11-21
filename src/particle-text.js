@@ -41,13 +41,13 @@ export function createParticleText(element, viewport) {
         float progress = smoothstep(0.0, 2.1, age);
         vec2 point = mix(aOrigin, position.xy, progress);
         point += (1.0 - progress) * vec2(sin(age * 4.0 + aSeed * 28.0) * 22.0, cos(age * 3.0 + aSeed * 18.0) * 15.0);
-        point += vec2(sin(uTime * 1.1 + aSeed * 32.0), cos(uTime * 0.9 + aSeed * 24.0)) * progress * 0.28;
+        point += vec2(sin(uTime * 1.1 + aSeed * 32.0), cos(uTime * 0.9 + aSeed * 24.0)) * progress * 0.12;
         vec2 offset = point - uPointer;
         float influence = max(0.0, 1.0 - length(offset) / 58.0);
         point += normalize(offset + vec2(0.01)) * influence * influence * 12.0 * progress;
         gl_Position = vec4(point.x / uViewport.x * 2.0 - 1.0, 1.0 - point.y / uViewport.y * 2.0, 0.0, 1.0);
         float sparkle = 0.92 + 0.18 * sin(uTime * 2.2 + aSeed * 65.0);
-        gl_PointSize = (2.8 + aSeed * 0.9 + step(0.97, aSeed) * sparkle * 2.8) * uDpr;
+        gl_PointSize = (2.1 + aSeed * 0.55 + step(0.985, aSeed) * sparkle) * uDpr;
         vAlpha = smoothstep(0.0, 0.25, age) * sparkle * aAlpha;
         vSeed = aSeed;
       }
@@ -58,9 +58,10 @@ export function createParticleText(element, viewport) {
       void main() {
         vec2 point = gl_PointCoord - 0.5;
         float radius = length(point);
-        float core = exp(-radius * radius * 13.0);
+        float core = 1.0 - smoothstep(0.22, 0.48, radius);
         float glint = exp(-abs(point.x) * 45.0 - abs(point.y) * 4.0) + exp(-abs(point.y) * 45.0 - abs(point.x) * 4.0);
-        float alpha = core + step(0.97, vSeed) * glint * 0.3;
+        float alpha = core + step(0.985, vSeed) * glint * 0.14;
+        if (alpha < 0.01) discard;
         vec3 color = mix(vec3(1.0, 0.84, 0.52), vec3(1.0, 0.98, 0.88), 0.4 + vSeed * 0.6);
         gl_FragColor = vec4(color, alpha * vAlpha);
       }

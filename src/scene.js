@@ -44,6 +44,14 @@ function createStar(radius = 0.25) {
 function createTree(texture, branchTexture) {
   const root = new THREE.Group();
   const transform = new THREE.Object3D();
+  const progress = { value: 1 };
+  const light = { value: 0.75 };
+  const revealShader = `
+    uniform float uProgress;
+    float treeReveal(float along) {
+      return uProgress >= 1.0 ? 1.0 : smoothstep(along, along + 0.025, uProgress);
+    }
+  `;
   const foliageMaterial = new THREE.MeshBasicMaterial({ map: branchTexture, color: '#c3d2c7', alphaTest: 0.4, alphaToCoverage: true, side: THREE.DoubleSide });
   const foliage = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 0.34), foliageMaterial, 4000);
   let branchIndex = 0;
@@ -75,7 +83,25 @@ function createTree(texture, branchTexture) {
   root.add(trunk);
 
   const ornamentCount = 84;
-  const ornaments = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 12, 8), gold, ornamentCount);
+  const ornamentMaterial = gold.clone();
+  ornamentMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.uProgress = progress;
+    shader.vertexShader = `varying float vTreeProgress;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vTreeProgress = clamp((instanceMatrix[3].y - 0.28) / 4.05, 0.0, 1.0);
+    `);
+    shader.fragmentShader = `${revealShader}\nvarying float vTreeProgress;\n${shader.fragmentShader}`
+      .replace('#include <color_fragment>', `
+        #include <color_fragment>
+        float ornamentLight = treeReveal(vTreeProgress);
+        diffuseColor.rgb *= mix(0.18, 1.0, ornamentLight);
+      `)
+      .replace('#include <emissivemap_fragment>', `
+        #include <emissivemap_fragment>
+        totalEmissiveRadiance += diffuseColor.rgb * ornamentLight * 0.45;
+      `);
+  };
+  const ornaments = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 12, 8), ornamentMaterial, ornamentCount);
   for (let index = 0; index < ornamentCount; index++) {
     const y = 0.4 + Math.random() * 3.7;
     const angle = index * 2.399;
@@ -99,29 +125,46 @@ function createTree(texture, branchTexture) {
     spiral.push(point);
     if (index % 2 === 0) bulbs.push(point.x, point.y, point.z);
   }
-  const wireMaterial = new THREE.MeshStandardMaterial({ color: '#b79a5e', emissive: '#e1a44d', emissiveIntensity: 0.35, metalness: 0.45, roughness: 0.4 });
+  const wireMaterial = new THREE.MeshStandardMaterial({ color: '#b79a5e', emissive: '#e1a44d', emissiveIntensity: 0.9, metalness: 0.45, roughness: 0.4 });
+  wireMaterial.onBeforeCompile = (shader) => {
+    shader.uniforms.uProgress = progress;
+    shader.uniforms.uLight = light;
+    shader.vertexShader = `varying float vTreeProgress;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vTreeProgress = clamp((position.y - 0.28) / 4.05, 0.0, 1.0);
+    `);
+    shader.fragmentShader = `${revealShader}\nuniform float uLight;\nvarying float vTreeProgress;\n${shader.fragmentShader}`
+      .replace('#include <emissivemap_fragment>', `
+        #include <emissivemap_fragment>
+        totalEmissiveRadiance *= treeReveal(vTreeProgress) * uLight;
+        float leading = exp(-pow((vTreeProgress - uProgress + 0.018) / 0.018, 2.0));
+        leading *= step(0.001, uProgress) * (1.0 - step(1.0, uProgress));
+        totalEmissiveRadiance += vec3(0.65, 0.86, 1.0) * leading * 1.5;
+      `);
+  };
   root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(spiral), 300, 0.012, 4, false), wireMaterial));
   const bulbGeometry = new THREE.BufferGeometry();
   bulbGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bulbs, 3));
   bulbGeometry.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(bulbs.length / 3).fill(1), 1));
   const bulbMaterial = new THREE.ShaderMaterial({
-    uniforms: { uLight: { value: 0.55 }, uTime: { value: 0 }, uReveal: { value: 5 }, uDpr: { value: 1 } },
+    uniforms: { uLight: light, uTime: { value: 0 }, uProgress: progress, uDpr: { value: 1 } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
       attribute float aSize;
+      ${revealShader}
       uniform float uLight;
       uniform float uTime;
-      uniform float uReveal;
       uniform float uDpr;
       varying float vLight;
       varying vec3 vTint;
       void main() {
         vec4 view = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * view;
-        vLight = (0.7 + 0.3 * sin(uTime * 1.4 + position.y * 7.0)) * uLight * smoothstep(position.y - 0.15, position.y + 0.15, uReveal);
+        vLight = (0.7 + 0.3 * sin(uTime * 1.4 + position.y * 7.0)) * uLight * treeReveal(clamp((position.y - 0.28) / 4.05, 0.0, 1.0));
         float wave = pow(max(0.0, sin(uTime * 1.8 - position.y * 3.2)), 8.0);
         vTint = mix(vec3(1.0, 0.77, 0.39), vec3(0.58, 0.86, 1.0), wave * 0.9);
-        gl_PointSize = clamp((24.0 + vLight * (150.0 + wave * 45.0)) * aSize * uDpr / max(0.5, -view.z), 1.0, 38.0 * uDpr);
+        float objectScale = clamp(length(modelMatrix[0].xyz) / 0.74, 0.25, 1.2);
+        gl_PointSize = clamp((18.0 + vLight * (112.0 + wave * 34.0)) * aSize * objectScale * uDpr / max(0.5, -view.z), 1.0, 28.5 * uDpr);
         vLight *= mix(0.6, 1.0, step(0.8, aSize));
       }
     `,
@@ -130,9 +173,9 @@ function createTree(texture, branchTexture) {
       varying vec3 vTint;
       void main() {
         float radius = length(gl_PointCoord - 0.5);
-        float halo = exp(-radius * radius * 22.0);
+        float halo = exp(-radius * radius * 40.0);
         float core = exp(-radius * radius * 150.0);
-        gl_FragColor = vec4(vTint + core * 1.2, (halo * 0.65 + core) * vLight);
+        gl_FragColor = vec4(vTint + core * 0.9, (halo * 0.3 + core) * vLight);
       }
     `,
   });
@@ -152,6 +195,8 @@ function createTree(texture, branchTexture) {
   glitterGeometry.setAttribute('aSize', new THREE.BufferAttribute(glitterSizes, 1));
   root.add(new THREE.Points(glitterGeometry, bulbMaterial));
   const star = createStar(0.29);
+  star.material = gold.clone();
+  star.material.emissive.set('#ffe1a0');
   star.position.y = 4.65;
   root.add(star);
   const haloMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -168,7 +213,7 @@ function createTree(texture, branchTexture) {
   verticalFlare.position.copy(horizontalFlare.position);
   verticalFlare.scale.set(0.075, 2.2, 1);
   root.add(verticalFlare);
-  return { root, bulbMaterial, wireMaterial, haloMaterial, flareMaterial, star };
+  return { root, progress, bulbMaterial, haloMaterial, flareMaterial, star };
 }
 
 function createGift() {
@@ -287,7 +332,7 @@ function createGlobe(tree) {
 }
 
 const poses = {
-  intro: { treeScale: 0.6, treeX: -0.08, treeY: -0.22, treeZ: 0, giftScale: 0.34, giftX: 0.85, giftY: -0.22, giftZ: 0.7, globeScale: 0, globeY: 1.1, cameraZ: 9.5, targetY: 1.9 },
+  intro: { treeScale: 0.6, treeX: -0.08, treeY: 0.13, treeZ: 0, giftScale: 0.34, giftX: 0.85, giftY: 0.13, giftZ: 0.7, globeScale: 0, globeY: 1.1, cameraZ: 9.5, targetY: 1.9 },
   tree: { treeScale: 0.74, treeX: 0, treeY: 0.55, treeZ: 0, giftScale: 0.28, giftX: 1.1, giftY: 0.52, giftZ: 0.6, globeScale: 0, globeY: 1.1, cameraZ: 9.6, targetY: 2.2 },
   lighting: { treeScale: 0.78, treeX: 0, treeY: 0.52, treeZ: 0, giftScale: 0.31, giftX: 1.12, giftY: 0.52, giftZ: 0.7, globeScale: 0, globeY: 1.1, cameraZ: 10, targetY: 2.25 },
   gift: { treeScale: 0.53, treeX: -2.8, treeY: 0.05, treeZ: -2.5, giftScale: 1.12, giftX: 0, giftY: 0.65, giftZ: 0, globeScale: 0, globeY: 1.4, cameraZ: 8.8, targetY: 2.3 },
@@ -391,7 +436,7 @@ export function createScene(canvas, onComplete, titleElement) {
   const positionTarget = new THREE.Vector3();
   const fireworkDirection = new THREE.Vector3();
   const fireworkTarget = new THREE.Vector3();
-  const fireworkColors = ['#ffe0a1', '#b8e8ff', '#ffd39f', '#d1f2ec'];
+  const fireworkColors = ['#ffe0a1', '#b8e8ff', '#ff69b4', '#d1f2ec'];
   const fireworkPatterns = ['chrysanthemum', 'star', 'willow'];
   const fireworkPositions = [[0, 0.82], [-0.54, 0.48], [0.56, 0.60], [-0.24, 0.75], [0.42, 0.32], [-0.58, 0.68], [0.16, 0.51], [0.5, 0.81]];
 
@@ -465,29 +510,27 @@ export function createScene(canvas, onComplete, titleElement) {
     target.y = THREE.MathUtils.damp(target.y, pose.targetY, 2.8, delta);
     camera.lookAt(target);
 
-    let light = stage === 'intro' ? 0.75 : 1;
-    let reveal = 5;
-    if (stage === 'tree') { light = 0.06 + hold * 0.7; reveal = hold * 4.8; }
-    if (stage === 'lighting') { light = 1.3; reveal = stageTime * 2.15; }
-    tree.bulbMaterial.uniforms.uLight.value = light;
-    tree.bulbMaterial.uniforms.uReveal.value = reveal;
+    tree.progress.value = stage === 'tree' ? hold : 1;
+    tree.bulbMaterial.uniforms.uLight.value = stage === 'intro' ? 0.75 : stage === 'lighting' ? 1.3 : 1;
     tree.bulbMaterial.uniforms.uTime.value = elapsed;
-    tree.wireMaterial.emissiveIntensity = light * 0.9;
-    const starPulse = stage === 'lighting' && !reducedMotion ? Math.exp(-Math.pow((stageTime - 1.9) / 0.24, 2)) : 0;
-    tree.haloMaterial.opacity = stage === 'tree' ? 0.13 + hold * 0.5 : 0.75 + starPulse * 0.25;
-    tree.flareMaterial.opacity = reducedMotion ? 0.08 : 0.18 + hold * 0.22 + starPulse * 0.8;
-    warm.intensity = stage === 'tree' ? 1.8 + hold * 8 : 10;
+    const starPulse = stage === 'lighting' && !reducedMotion ? Math.exp(-Math.pow((stageTime - 0.2) / 0.18, 2)) : 0;
+    const starLit = stage !== 'tree';
+    tree.star.material.color.copy(gold.color).multiplyScalar(starLit ? 1 : 0.14);
+    tree.star.material.emissiveIntensity = starLit ? 0.2 + starPulse : 0;
+    tree.haloMaterial.opacity = starLit ? 0.75 + starPulse * 0.25 : 0;
+    tree.flareMaterial.opacity = starLit ? (reducedMotion ? 0.08 : 0.18 + starPulse * 0.8) : 0;
+    warm.intensity = stage === 'tree' ? 1.8 : 10;
     tree.star.rotation.y = Math.sin(elapsed * 0.4) * 0.16;
     globe.innerSnow.uniforms.uTime.value = reducedMotion ? 0 : elapsed * 0.55;
     snow.uniforms.uTime.value = reducedMotion ? 0 : elapsed;
     bursts.uniforms.uTime.value = elapsed;
     particleTitle?.update(elapsed);
 
-    if (stage === 'lighting' && stageTime > 2.1 && !openingBurst) {
+    if (stage === 'lighting' && stageTime > 0.18 && !openingBurst) {
       bursts.burst([0, 4.15, 0], '#ffe0a0', reducedMotion ? 70 : 360, 'star');
       openingBurst = true;
     }
-    if (stage === 'lighting' && stageTime > (reducedMotion ? 0.7 : 3.25) && !completed) {
+    if (stage === 'lighting' && stageTime > (reducedMotion ? 0.7 : 1.45) && !completed) {
       completed = true;
       onComplete();
     }

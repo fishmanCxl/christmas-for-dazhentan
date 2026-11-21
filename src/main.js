@@ -12,7 +12,7 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (reducedMotion) document.querySelector('#finale-hint').textContent = '愿这一点点魔法，陪你过个好圣诞';
 const stageCopy = {
   intro: '大侦探，一份圣诞惊喜，等你开启。',
-  tree: '长按星星 1.2 秒，点亮圣诞树。',
+  tree: '长按星星 2.4 秒，点亮圣诞树。',
   lighting: '圣诞树正在点亮。',
   gift: '圣诞树亮了。划开缎带，或者轻触礼物。',
   opening: '礼物正在打开。',
@@ -64,7 +64,7 @@ function endHold() {
   cancelAnimationFrame(holdFrame);
   holdFrame = 0;
   holdStarted = 0;
-  holdButton.style.setProperty('--hold', '0deg');
+  holdButton.style.setProperty('--hold', stage === 'lighting' ? '360deg' : '0deg');
   holdButton.classList.remove('is-holding');
   if (holdPointer !== undefined && holdButton.hasPointerCapture(holdPointer)) holdButton.releasePointerCapture(holdPointer);
   holdPointer = undefined;
@@ -89,6 +89,7 @@ function act(action) {
     else dot.removeAttribute('aria-current');
   });
   holdButton.disabled = stage === 'lighting';
+  holdButton.style.setProperty('--hold', stage === 'lighting' ? '360deg' : '0deg');
   document.querySelector('#hold-hint').textContent = stage === 'lighting' ? '你的圣诞树，亮了' : '长按星星，点亮圣诞树';
   document.querySelector('#drag-hint').textContent = stage === 'lighting' ? '一点点魔法，正在发生' : '左右轻滑，看看雪夜的另一面';
   document.querySelector('#gift-hint').textContent = stage === 'opening' ? '惊喜，正在打开' : '划开缎带，拆开惊喜';
@@ -103,7 +104,7 @@ function act(action) {
 
 function tickHold(now) {
   if (!holdStarted || stage !== 'tree') return;
-  const progress = Math.min((now - holdStarted) / 1200, 1);
+  const progress = Math.min((now - holdStarted) / 2400, 1);
   holdButton.style.setProperty('--hold', `${progress * 360}deg`);
   scene?.setHold(progress);
   if (progress >= 1) {

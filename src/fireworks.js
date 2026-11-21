@@ -50,7 +50,7 @@ export function createBursts(capacity = 7200) {
         vec4 view = modelViewMatrix * vec4(position + offset, 1.0);
         gl_Position = projectionMatrix * view;
         float scale = aKind == 2.0 ? 0.65 + progress * 1.8 : 1.0;
-        gl_PointSize = clamp(aSize * scale * 10.0 * uDpr / max(0.5, -view.z), 1.0, 128.0 * uDpr);
+        gl_PointSize = clamp(aSize * scale * 8.0 * uDpr / max(0.5, -view.z), 1.0, 100.0 * uDpr);
         vAlpha = pow(1.0 - progress, 0.7);
         if (aKind == 1.0) vAlpha *= 0.75 * exp(-aTrail * 3.0);
         if (aKind == 2.0) vAlpha = pow(1.0 - progress, 2.4) * 0.7;
@@ -65,11 +65,11 @@ export function createBursts(capacity = 7200) {
       void main() {
         vec2 point = gl_PointCoord - 0.5;
         float radius2 = dot(point, point);
-        float halo = exp(-radius2 * (vKind == 2.0 ? 15.0 : 24.0));
-        float core = exp(-radius2 * 170.0);
-        float alpha = (halo * 0.55 + core * 0.8) * vAlpha;
+        float halo = exp(-radius2 * (vKind == 2.0 ? 22.0 : 42.0));
+        float core = vKind == 2.0 ? exp(-radius2 * 170.0) : 1.0 - smoothstep(0.055, 0.18, sqrt(radius2));
+        float alpha = (halo * 0.28 + core) * vAlpha;
         if (alpha < 0.003) discard;
-        gl_FragColor = vec4(vColor * (1.0 + core * 2.3), alpha);
+        gl_FragColor = vec4(vColor * (1.0 + core * 1.8), alpha);
       }
     `,
   });
